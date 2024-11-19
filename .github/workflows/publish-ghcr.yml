@@ -16,18 +16,8 @@ jobs:
         run: |
           #!/bin/bash
           latest_tag=$(curl -s https://api.github.com/repos/kopia/kopia/tags | jq -r '.[0].name')
+          latest_tag=${latest_tag#v}  # Remove leading 'v' if present
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
-
-      - name: Check if the new tag exists in GHCR
-        id: check-tag
-        run: |
-          #!/bin/bash
-          ghcr_tags=$(curl -s -H "Authorization: Bearer ${{ secrets.GH_PAT_TOKEN }}" https://api.github.com/user/packages/container/kopia/versions | jq -r '.[].metadata.container.tags[]')
-          if echo "${ghcr_tags}" | grep -q "${{ env.latest_tag }}"; then
-            echo "exists=true" >> $GITHUB_ENV
-          else
-            echo "exists=false" >> $GITHUB_ENV
-          fi
 
       - name: Login to GHCR
         if: env.exists == 'false'
