@@ -1,0 +1,47 @@
+name: kopia-ghcr
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  check-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Check for new tags in kopia/kopia
+        run: |
+          #!/bin/bash
+          latest_tag=$(curl -s https://api.github.com/repos/kopia/kopia/tags | jq -r '.[0].name')
+          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+
+      - name: Check if the new tag exists in GHCR
+        id: check-tag
+        run: |
+          #!/bin/bash
+          ghcr_tags=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/user/packages/container/kopia/versions | jq -r '.[].metadata.container.tags[]')
+          if echo "${ghcr_tags}" | grep -q "${{ env.latest_tag }}"; then
+            echo "exists=true" >> $GITHUB_ENV
+          else
+            echo "exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Login to GHCR
+        if: env.exists == 'false'
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and push Docker image
+        if: env.exists == 'false'
+        run: |
+          docker pull kopia/kopia:${{ env.latest_tag }}
+          docker tag kopia/kopia:${{ env.latest_tag }} ghcr.io/${{ github.repository_owner }}/kopia:${{ env.latest_tag }}
+          docker tag kopia/kopia:${{ env.latest_tag }} ghcr.io/${{ github.repository_owner }}/kopia:latest
+          docker push ghcr.io/${{ github.repository_owner }}/kopia:${{ env.latest_tag }}
+          docker push ghcr.io/${{ github.repository_owner }}/kopia:latest
