@@ -22,7 +22,7 @@ jobs:
         id: check-tag
         run: |
           #!/bin/bash
-          ghcr_tags=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/user/packages/container/kopia/versions | jq -r '.[].metadata.container.tags[]')
+          ghcr_tags=$(curl -s -H "Authorization: Bearer ${{ secrets.GH_PAT_TOKEN }}" https://api.github.com/user/packages/container/kopia/versions | jq -r '.[].metadata.container.tags[]')
           if echo "${ghcr_tags}" | grep -q "${{ env.latest_tag }}"; then
             echo "exists=true" >> $GITHUB_ENV
           else
@@ -35,7 +35,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GH_PAT_TOKEN }}
 
       - name: Pull and push Docker image
         if: env.exists == 'false'
